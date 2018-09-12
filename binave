@@ -1,0 +1,101 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""Binned statistic.
+
+"""
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
+# Python template written by Bin Xu (xubinrun@gmail.com)
+# Licensed under GPL License
+
+
+import argparse
+import sys
+import numpy as np
+import time
+
+
+
+
+# main process
+
+
+def main():
+    # Time start
+    start_ticks = time.time()
+
+    # Parse arguments
+    parser = argparse.ArgumentParser(description=__doc__,
+            epilog= """Script to calculate binned_statistic. Return MEAN, STD, SEM for each bin.
+                    """,
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-nt","--notime", help="Don't dispaly time usage.", action="store_true", default=False)
+    parser.add_argument("-n","--nbins", help="Define the number of bins.", type=int, default=10)
+    parser.add_argument("-w","--width", help="Define the bin width. Default using nbins to set bins.", type=float, default=0)
+    parser.add_argument("-i","--index", help="Define the index column.", type=int, default=1, metavar='col_num')
+    parser.add_argument("-v","--value", help="The data column on which the statisitc will be computed.", type=int, default=1, metavar='col_num')
+    parser.add_argument("infile", help="Define the input file.", type=argparse.FileType('r'), default=sys.stdin, nargs='?')
+    parser.add_argument("-o","--outfile", help="Define the output file.", type=argparse.FileType('w'), default=sys.stdout)
+    args = parser.parse_args()
+
+    # Your main process
+
+    # get column index
+    index_column = args.index-1
+    value_column = args.value-1
+
+    # get data array
+    index_array = []
+    value_array = []
+    for line in args.infile:
+        tmp = line.split()
+        # comment as '#'
+        if tmp[0][0] != '#':
+            index_array.append(np.double(tmp[index_column]))
+            value_array.append(np.double(tmp[value_column]))
+
+    # obtain the statistics using scipy
+    min_index = min(index_array)
+    max_index = max(index_array)
+    from scipy.stats import binned_statistic
+
+    # obtain bins
+    if args.width == 0:
+        bins = args.nbins
+    else:
+        edge = min_index
+        bins = []
+        while edge <= max_index:
+            bins.append(edge)
+            edge += args.width
+        bins.append(edge)
+
+    # do statistics 
+    means, bin_edges, binnumber = binned_statistic(index_array, value_array, statistic='mean', bins=bins)
+    print(binnumber)
+    print(np.bincount(binnumber))
+    stds, bin_edges, binnumber = binned_statistic(index_array, value_array, statistic=np.std, bins=bins)
+
+    # get mean index for output
+    mean_indexs, bin_edges, binnumber = binned_statistic(index_array, index_array, statistic='mean', bins=bins)
+
+    out = args.outfile
+    bincount = np.array(np.bincount(binnumber)[1:])
+    stds = np.array(stds)
+    sems = stds / np.sqrt(bincount)
+    out.write("# mean_index  mean_value, std_value, sem_value\n")
+    for mean_index, mean, std, sem in zip(mean_indexs, means, stds, sems):
+        out.write("%10.6g %10.6g %10.6g %10.6g\n" %(mean_index, mean, std, sem))
+
+
+
+    
+    # Time end
+    end_tickes = time.time()
+    # Output time usage
+    if not args.notime:
+        print("Time usage: %f s" % (end_tickes-start_ticks))
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
