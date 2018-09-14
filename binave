@@ -72,8 +72,6 @@ def main():
 
     # do statistics 
     means, bin_edges, binnumber = binned_statistic(index_array, value_array, statistic='mean', bins=bins)
-    print(binnumber)
-    print(np.bincount(binnumber))
     stds, bin_edges, binnumber = binned_statistic(index_array, value_array, statistic=np.std, bins=bins)
 
     # get mean index for output
